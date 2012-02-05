@@ -528,6 +528,63 @@ Andreas Baldeau
 </ul>
 </div>
 <div class="slide">
+<h1 id="tries">Tries</h1>
+<ul>
+<li>Effiziente Key-Value-Maps</li>
+</ul>
+</div>
+<div class="slide">
+<h1 id="string-tries">String-Tries</h1>
+<div class="figure">
+<img src="StringTrie.png" /><p class="caption"></p>
+</div>
+</div>
+<div class="slide">
+<p>Implementierung greift für <code>CharTrie</code> auf <code>Data.Map</code> zurück.</p>
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="kw">import</span> <span class="dt">Data.Map</span> (<span class="dt">Map</span>)<br /><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">Map</span></code></pre>
+<p>Trie für Listen. Hinterlegt jeden Teil-Listen-Trie in <code>map</code>.</p>
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ListTrie</span> <span class="fu">map</span> v <span class="fu">=</span><br />         <span class="dt">ListTrie</span><br />             (<span class="dt">Maybe</span> v)               <span class="co">-- []</span><br />             (<span class="fu">map</span> (<span class="dt">ListTrie</span> <span class="fu">map</span> v))  <span class="co">-- (:)</span></code></pre>
+<p>Z.B. für Strings:</p>
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="kw">type</span> <span class="dt">StringTrie</span> v <span class="fu">=</span> <span class="dt">ListTrie</span> (<span class="dt">Map</span> <span class="dt">Char</span>) v</code></pre>
+</div>
+<div class="slide">
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="co">-- O(1)</span><br /><span class="ot">empty </span><span class="ot">::</span> <span class="dt">StringTrie</span> v<br />empty <span class="fu">=</span> <span class="dt">ListTrie</span> <span class="kw">Nothing</span> Map.empty</code></pre>
+<p>Diese Implementierung von <code>isEmpty</code> geht davon aus, dass der Trie minimiert ist.</p>
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="co">-- O(1)</span><br /><span class="ot">isEmpty </span><span class="ot">::</span> <span class="dt">StringTrie</span> v <span class="ot">-&gt;</span> <span class="dt">Bool</span><br />isEmpty (<span class="dt">ListTrie</span> <span class="kw">Nothing</span> tc) <span class="fu">=</span> Map.null tc<br />isEmpty _                     <span class="fu">=</span> <span class="kw">False</span></code></pre>
+</div>
+<div class="slide">
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="co">-- O(n), n == length cs</span><br /><span class="ot">insert </span><span class="ot">::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> v <span class="ot">-&gt;</span> <span class="dt">StringTrie</span> v <span class="ot">-&gt;</span> <span class="dt">StringTrie</span> v<br />insert []       v (<span class="dt">ListTrie</span> _  tc) <span class="fu">=</span> <span class="dt">ListTrie</span> (<span class="kw">Just</span> v) tc<br />insert (c <span class="fu">:</span> cs) v (<span class="dt">ListTrie</span> tn tc) <span class="fu">=</span> <span class="dt">ListTrie</span> tn       tc'<br />  <span class="kw">where</span><br />    tc' <span class="fu">=</span> Map.insert c (insert cs v ts) tc<br />    ts  <span class="fu">=</span> <span class="fu">maybe</span> empty <span class="fu">id</span> (Map.lookup c tc)</code></pre>
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="co">-- O(n), n == length cs</span><br /><span class="ot">lookup' </span><span class="ot">::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">StringTrie</span> v <span class="ot">-&gt;</span> <span class="dt">Maybe</span> v<br />lookup' <span class="st">&quot;&quot;</span>       (<span class="dt">ListTrie</span> tn _ ) <span class="fu">=</span> tn<br />lookup' (c <span class="fu">:</span> cs) (<span class="dt">ListTrie</span> _  tc) <span class="fu">=</span> <span class="kw">do</span><br />    ts <span class="ot">&lt;-</span> Map.lookup c tc<br />    lookup' cs ts</code></pre>
+</div>
+<div class="slide">
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="co">-- O(n), n == length cs</span><br /><span class="ot">delete </span><span class="ot">::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">StringTrie</span> v <span class="ot">-&gt;</span> <span class="dt">StringTrie</span> v<br />delete <span class="st">&quot;&quot;</span>       (<span class="dt">ListTrie</span> _  tc) <span class="fu">=</span> <span class="dt">ListTrie</span> <span class="kw">Nothing</span> tc</code></pre>
+<p>Wird beim Löschen ein Teil-Trie leer, so sollte dieser aus dem Trie entfernt werden, damit dieser minimal wird.</p>
+<pre class="sourceCode"><code class="sourceCode haskell">delete (c <span class="fu">:</span> cs) (<span class="dt">ListTrie</span> tn tc) <span class="fu">=</span> <span class="dt">ListTrie</span> tn      tc'<br />  <span class="kw">where</span><br />    tc' <span class="fu">=</span> Map.update (\ ts <span class="ot">-&gt;</span> cleanup <span class="fu">$</span> delete cs ts) c tc<br />    cleanup t<br />      <span class="fu">|</span> isEmpty t <span class="fu">=</span> <span class="kw">Nothing</span><br />      <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> <span class="kw">Just</span> t</code></pre>
+</div>
+<div class="slide">
+<h1 id="maybe-bool-listen-tries">Maybe-Bool-Listen-Tries</h1>
+<div class="figure">
+<img src="MaybeBoolListTrie.png" /><p class="caption"></p>
+</div>
+</div>
+<div class="slide">
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">BoolTrie</span> v <span class="fu">=</span><br />         <span class="dt">BoolTrie</span><br />             (<span class="dt">Maybe</span> v)  <span class="co">-- False</span><br />             (<span class="dt">Maybe</span> v)  <span class="co">-- True</span></code></pre>
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">MaybeTrie</span> <span class="fu">map</span> v <span class="fu">=</span><br />         <span class="dt">MaybeTrie</span><br />             (<span class="dt">Maybe</span> v)  <span class="co">-- Nothing</span><br />             (<span class="fu">map</span> v)    <span class="co">-- Just</span></code></pre>
+<pre class="sourceCode"><code class="sourceCode haskell"><span class="kw">type</span> <span class="dt">MaybeBoolListTrie</span> v <span class="fu">=</span> <span class="dt">ListTrie</span> (<span class="dt">MaybeTrie</span> <span class="dt">BoolTrie</span>)</code></pre>
+</div>
+<div class="slide">
+<h1 id="fazit-tries">Fazit Tries</h1>
+<ul>
+<li><code>lookup</code>, <code>insert</code> und <code>delete</code> in O(n) mit Schlüsselgröße n.</li>
+<li>Dank Sharing können sich verschiedene Versionen eines Tries große Teile des benötigten Speichers teilen.</li>
+</ul>
+<p>Aber:</p>
+<ul>
+<li>Für jeden Schlüsseltyp wird ein neuer Trie-Typ inkl. zugehöriger Funktionen benötigt.</li>
+<li>Erzeugung mittels Template-Haskell möglich.</li>
+</ul>
+</div>
+<div class="slide">
 <h1 id="datenstrukturen-in-haskell">Datenstrukturen in Haskell</h1>
 <ul>
 <li>Die .lhs Dateien liegen auf github: <a href="http://github.com/baldo/hughh">http://github.com/baldo/hughh</a></li>
